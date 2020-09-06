@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use crate::lexer::Token;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Keyword {
     Define,
     Fn
@@ -20,7 +20,7 @@ impl TryFrom<&str> for Keyword {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expr {
     Keyword(Keyword),
     Identifier(String),

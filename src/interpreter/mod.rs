@@ -13,7 +13,7 @@ static INTERPRETER_STATE: SyncLazy<HashMap<String, Binding>> = SyncLazy::new(|| 
 type Expressions = std::vec::IntoIter<Expr>;
 type Bindings = std::vec::IntoIter<Binding>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Binding {
     Expression(Expr),
     Function(usize /* num_arguments */, Expr),
