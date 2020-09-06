@@ -6,6 +6,7 @@ use std::lazy::SyncLazy;
 
 use crate::parser::Expr;
 
+// TODO: should probably be replaced with state struct
 static INTERPRETER_STATE: SyncLazy<HashMap<String, Binding>> = SyncLazy::new(|| {
     let mut res = HashMap::new();
     res.insert("add".to_string(), Binding::NativeFunction(None, add_native));
@@ -16,13 +17,19 @@ static INTERPRETER_STATE: SyncLazy<HashMap<String, Binding>> = SyncLazy::new(|| 
 type Expressions = std::vec::IntoIter<Expr>;
 type Bindings = std::vec::IntoIter<Binding>;
 
+/// The value of a binding.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Binding {
+    /// An expression (ex. "(add 2 2)")
     Expression(Expr),
+    /// A function defined in Wriggle
     Function(usize /* num_arguments */, Expr),
+    /// A function defined in Rust
     NativeFunction(Option<usize>, fn(Bindings) -> Binding)
 }
 
+/// Interpret a given iterator over expressions.
+/// Returns a binding as the result of the evaluation.
 pub fn interpret(mut expressions: Expressions) -> Binding {
     let expression = match expressions.next() {
         Some(expr) => expr,
@@ -38,6 +45,7 @@ pub fn interpret(mut expressions: Expressions) -> Binding {
     }
 }
 
+/// Try and resolve a binding, making a function call if necessary.
 fn handle_identifier(ident: &str, expressions: Expressions) -> Binding {
     let binding = INTERPRETER_STATE.get(ident)
         .expect(&format!("Unknown identifier {}", ident));
@@ -55,7 +63,9 @@ fn handle_identifier(ident: &str, expressions: Expressions) -> Binding {
     }
 }
 
+/// Try and execute a function
 fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Binding {
+    // TODO: seems lengthy... can this be trimmed down?
     assert!(matches!(func, Binding::Function(..) | Binding::NativeFunction(..)));
 
     match func {
@@ -130,6 +140,7 @@ fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Bin
     }
 }
 
+/// Native variadic function to add numbers
 fn add_native(bindings: Bindings) -> Binding {
     let res = bindings
         .into_iter()
