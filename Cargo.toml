@@ -1,0 +1,12 @@
+[package]
+name = "faeries-aire"
+description = "Typed Lisp"
+version = "0.1.0"
+authors = ["Ruby Lazuli <nipkraps@gmail.com>"]
+license = "MIT"
+edition = "2018"
+
+[dependencies]
+
+[profile.release]
+lto = true
