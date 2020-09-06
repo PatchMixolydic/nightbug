@@ -1,6 +1,6 @@
 [package]
 name = "nightbug"
-description = "Typed Lisp"
+description = "A Lisp-like language"
 version = "0.1.0"
 authors = ["Ruby Lazuli <nipkraps@gmail.com>"]
 license = "MIT"
