@@ -2,10 +2,10 @@ use std::convert::TryFrom;
 
 use crate::lexer::Token;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Keyword {
-    True,
-    False
+    Define,
+    Fn
 }
 
 impl TryFrom<&str> for Keyword {
@@ -13,19 +13,21 @@ impl TryFrom<&str> for Keyword {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
-            "true" => Ok(Self::True),
-            "false" => Ok(Self::False),
+            "define" => Ok(Self::Define),
+            "fn" => Ok(Self::Fn),
             _ => Err(())
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     Keyword(Keyword),
     Identifier(String),
     Integer(i32),
+    Boolean(bool),
     Unit,
+    Argument(usize),
     List(Vec<Expr>)
 }
 
@@ -37,9 +39,14 @@ impl Parser {
     fn parse_token(&mut self, token: Token) -> Option<Expr> {
         match token {
             Token::IdentOrKeyword(id_or_kw) => {
-                match Keyword::try_from(id_or_kw.as_str()) {
-                    Ok(keyword) => Some(Expr::Keyword(keyword)),
-                    Err(_) => Some(Expr::Identifier(id_or_kw.clone())),
+                if let Ok(keyword) = Keyword::try_from(id_or_kw.as_str()) {
+                    return Some(Expr::Keyword(keyword));
+                }
+
+                match id_or_kw.as_str() {
+                    "true" => Some(Expr::Boolean(true)),
+                    "false" => Some(Expr::Boolean(false)),
+                    _ => Some(Expr::Identifier(id_or_kw.clone()))
                 }
             },
 

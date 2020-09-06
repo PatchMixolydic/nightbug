@@ -1,5 +1,5 @@
 [package]
-name = "faeries-aire"
+name = "nightbug"
 description = "Typed Lisp"
 version = "0.1.0"
 authors = ["Ruby Lazuli <nipkraps@gmail.com>"]
