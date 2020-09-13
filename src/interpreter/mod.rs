@@ -39,7 +39,7 @@ pub fn interpret(mut expressions: Expressions) -> Binding {
     match expression {
         Expr::List(inner_expressions) => interpret(inner_expressions.into_iter()),
         Expr::Identifier(ident) => handle_identifier(&ident, expressions),
-        expr @ (Expr::Integer(_) | Expr::Boolean(_) | Expr::Unit) => Binding::Expression(expr),
+        Expr::Integer(_) | Expr::Boolean(_) | Expr::Unit => Binding::Expression(expression),
         Expr::Keyword(_) => todo!(),
         Expr::Argument(_) => unreachable!()
     }
@@ -53,11 +53,11 @@ fn handle_identifier(ident: &str, expressions: Expressions) -> Binding {
     match binding {
         Binding::Expression(expr) => return Binding::Expression(expr.clone()),
 
-        func @ (Binding::Function(..) | Binding::NativeFunction(..)) => {
+        Binding::Function(..) | Binding::NativeFunction(..) => {
             if expressions.len() != 0 {
-                return handle_function(func, &ident, expressions);
+                return handle_function(binding, &ident, expressions);
             } else {
-                return func.clone();
+                return binding.clone();
             }
         },
     }
@@ -102,7 +102,7 @@ fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Bin
                 },
 
                 Expr::Identifier(_) => handle_identifier(ident, Vec::new().into_iter()),
-                expr @ (Expr::Integer(_) | Expr::Boolean(_) | Expr::Unit) => Binding::Expression(expr),
+                Expr::Integer(_) | Expr::Boolean(_) | Expr::Unit => Binding::Expression(body),
                 _ => todo!()
             }
         },
