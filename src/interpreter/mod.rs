@@ -22,7 +22,7 @@ type Bindings = std::vec::IntoIter<Binding>;
 pub enum Binding {
     /// An expression (ex. "(add 2 2)")
     Expression(Expr),
-    /// A function defined in Wriggle
+    /// A function defined in Nightbug
     Function(usize /* num_arguments */, Expr),
     /// A function defined in Rust
     NativeFunction(Option<usize>, fn(Bindings) -> Binding)

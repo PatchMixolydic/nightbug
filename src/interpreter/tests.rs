@@ -38,7 +38,7 @@ fn boolean_literal() {
 }
 
 #[test]
-fn wriggle_function() {
+fn nightbug_function() {
     // TODO: define function here
     assert_result_matches!("second", Binding::Function(..))
 }
