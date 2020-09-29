@@ -106,7 +106,9 @@ impl Parser {
 /// Parse the given `Vec` of `Token`s into a `Vec` of `Expr`s.
 pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
     let mut res = Vec::new();
-    let mut parser = Parser { tokens: Box::new(tokens.into_iter()) };
+    let mut parser = Parser {
+        tokens: Box::new(tokens.into_iter())
+    };
 
     while let Some(token) = parser.parse_next() {
         res.push(token);

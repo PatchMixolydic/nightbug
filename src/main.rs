@@ -18,5 +18,8 @@ fn main() {
     println!("Tokens: {:?}", tokens);
     let expressions = parser::parse(tokens);
     println!("Expressions: {:?}", expressions);
-    println!("Result: {:?}", interpreter::interpret(expressions.into_iter()));
+    println!(
+        "Result: {:?}",
+        interpreter::interpret(expressions.into_iter())
+    );
 }

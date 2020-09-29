@@ -1,23 +1,23 @@
 use crate::{
+    interpreter::{interpret, Binding},
     lexer::lex,
-    parser::{Expr, parse},
-    interpreter::{Binding, interpret}
+    parser::{parse, Expr}
 };
 
 macro_rules! interpret_str {
-    ($s: literal) => {
+    ($s:literal) => {
         interpret(parse(lex($s)).into_iter())
     };
 }
 
 macro_rules! assert_result {
-    ($code: literal, $expect: expr) => {
+    ($code:literal, $expect:expr) => {
         assert_eq!(interpret_str!($code), $expect)
     };
 }
 
 macro_rules! assert_result_matches {
-    ($code: literal, $expect: pat) => {
+    ($code:literal, $expect:pat) => {
         assert!(matches!(interpret_str!($code), $expect))
     };
 }

@@ -10,7 +10,10 @@ use crate::parser::Expr;
 static INTERPRETER_STATE: SyncLazy<HashMap<String, Binding>> = SyncLazy::new(|| {
     let mut res = HashMap::new();
     res.insert("add".to_string(), Binding::NativeFunction(None, add_native));
-    res.insert("second".to_string(), Binding::Function(2, Expr::Argument(1)));
+    res.insert(
+        "second".to_string(),
+        Binding::Function(2, Expr::Argument(1))
+    );
     res
 });
 
@@ -47,7 +50,8 @@ pub fn interpret(mut expressions: Expressions) -> Binding {
 
 /// Try and resolve a binding, making a function call if necessary.
 fn handle_identifier(ident: &str, expressions: Expressions) -> Binding {
-    let binding = INTERPRETER_STATE.get(ident)
+    let binding = INTERPRETER_STATE
+        .get(ident)
         .expect(&format!("Unknown identifier {}", ident));
 
     match binding {
@@ -66,7 +70,10 @@ fn handle_identifier(ident: &str, expressions: Expressions) -> Binding {
 /// Try and execute a function
 fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Binding {
     // TODO: seems lengthy... can this be trimmed down?
-    assert!(matches!(func, Binding::Function(..) | Binding::NativeFunction(..)));
+    assert!(matches!(
+        func,
+        Binding::Function(..) | Binding::NativeFunction(..)
+    ));
 
     match func {
         Binding::Function(num_arguments, body) => {
@@ -81,7 +88,7 @@ fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Bin
 
             let mut body = body.clone();
             let args: Vec<Expr> = expressions.collect();
-        
+
             if let Expr::Argument(num) = body {
                 body = args[num].clone();
             }
@@ -90,11 +97,9 @@ fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Bin
                 Expr::List(contents) => {
                     let contents: Vec<Expr> = contents
                         .into_iter()
-                        .map(|expr| {
-                            match expr {
-                                Expr::Argument(num) => args[num].clone(),
-                                _ => expr,
-                            }
+                        .map(|expr| match expr {
+                            Expr::Argument(num) => args[num].clone(),
+                            _ => expr
                         })
                         // Collection needed to avoid recursion limit
                         .collect();
@@ -142,15 +147,13 @@ fn handle_function(func: &Binding, ident: &str, expressions: Expressions) -> Bin
 
 /// Native variadic function to add numbers
 fn add_native(bindings: Bindings) -> Binding {
-    let res = bindings
-        .into_iter()
-        .fold(0, |acc, next| {
-            if let Binding::Expression(Expr::Integer(i)) = next {
-                acc + i
-            } else {
-                panic!("Unexpected argument to add: {:?}", next)
-            }
-        });
+    let res = bindings.into_iter().fold(0, |acc, next| {
+        if let Binding::Expression(Expr::Integer(i)) = next {
+            acc + i
+        } else {
+            panic!("Unexpected argument to add: {:?}", next)
+        }
+    });
 
     Binding::Expression(Expr::Integer(res))
 }

@@ -68,5 +68,6 @@ fn consume_integer(source: &mut Peekable<Chars>, mut res: String) -> i32 {
     while let Some('0'..='9') = source.peek() {
         res.push(source.next().unwrap());
     }
-    res.parse::<i32>().expect(&format!("Failed to parse i32: {}", res))
+    res.parse::<i32>()
+        .expect(&format!("Failed to parse i32: {}", res))
 }
