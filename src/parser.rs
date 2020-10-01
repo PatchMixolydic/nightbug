@@ -74,7 +74,7 @@ impl<'src> Parser<'src> {
             .span_label(location..location + 1, "this delimiter")
             .span_label(
                 eof..eof + 1,
-                "reached end of file before finding matching delimiter"
+                "reached end of file before finding match"
             )
             .emit();
     }
@@ -99,30 +99,46 @@ impl<'src> Parser<'src> {
 
             TokenKind::OpenParen => {
                 let mut contents = Vec::new();
-                let maybe_next_token = self.tokens.next();
 
-                if let Some(token) = maybe_next_token {
-                    if token.kind == TokenKind::CloseParen {
+                if let Some(next_token) = self.tokens.next() {
+                    if next_token.kind == TokenKind::CloseParen {
                         return Ok(Expr::Unit);
                     } else {
-                        contents.push(self.parse_token(token)?);
+                        contents.push(self.parse_token(next_token)?);
                     }
                 } else {
                     // Span end is one after our token
                     self.emit_unclosed_delimiter_err(span.start, span.end - 1);
+                    return Err(ParseError::UnclosedDelimiter {
+                        location: span.start,
+                        eof: span.end - 1
+                    });
                 }
 
-                while let Some(token) = self.tokens.next() {
-                    if token.kind == TokenKind::CloseParen {
+                let mut prev_token_span_end = span.end - 1;
+
+                loop {
+                    let next_token = match self.tokens.next() {
+                        Some(next_token) => next_token,
+
+                        None => {
+                            self.emit_unclosed_delimiter_err(span.start, prev_token_span_end);
+                            return Err(ParseError::UnclosedDelimiter {
+                                location: span.start,
+                                eof: prev_token_span_end
+                            });
+                        }
+                    };
+
+                    if next_token.kind == TokenKind::CloseParen {
                         break;
                     }
-                    let token_span = token.span.clone();
 
-                    match self.parse_token(token) {
+                    prev_token_span_end = next_token.span.end - 1;
+                    match self.parse_token(next_token) {
                         Ok(expr) => contents.push(expr),
                         Err(err) => {
-                            // TODO: probably the wrong error
-                            self.emit_unclosed_delimiter_err(span.start, token_span.start);
+                            // probably already emitted an error, propagate it
                             return Err(err);
                         }
                     }
@@ -162,4 +178,17 @@ pub fn parse(tokens: Vec<Token>, code: &str) -> Result<Vec<Expr>, ParseError> {
     }
 
     Ok(res)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::lexer::lex;
+
+    #[test]
+    fn fail_unclosed() {
+        let code = "(add 2 (second 3 4)) (foobar 1";
+        let res = parse(lex(code).unwrap(), code);
+        assert!(matches!(res, Err(ParseError::UnclosedDelimiter { .. })));
+    }
 }
