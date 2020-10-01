@@ -72,10 +72,7 @@ impl<'src> Parser<'src> {
         self.error_ctx
             .build_error("unclosed delimiter in file")
             .span_label(location..location + 1, "this delimiter")
-            .span_label(
-                eof..eof + 1,
-                "reached end of file before finding match"
-            )
+            .span_label(eof..eof + 1, "reached end of file before finding match")
             .emit();
     }
 

@@ -146,16 +146,17 @@ fn consume_integer(
         num_str.push(source.next().unwrap().1);
     }
 
-    num_str.parse::<i32>()
-    .map(|res| Token::new(start..start + num_str.len(), TokenKind::Integer(res)))
-    .or_else(|err| {
-        error_ctx
-            .build_ice_span(
-                start..start + num_str.len(),
-                &format!("could not parse {} into an integer", num_str)
-            )
-            .note(&format!("str::parse::<i32> says: {}", err))
-            .emit();
-        Err((num_str, err))
-    })
+    num_str
+        .parse::<i32>()
+        .map(|res| Token::new(start..start + num_str.len(), TokenKind::Integer(res)))
+        .or_else(|err| {
+            error_ctx
+                .build_ice_span(
+                    start..start + num_str.len(),
+                    &format!("could not parse {} into an integer", num_str)
+                )
+                .note(&format!("str::parse::<i32> says: {}", err))
+                .emit();
+            Err((num_str, err))
+        })
 }
