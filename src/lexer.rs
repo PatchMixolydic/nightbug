@@ -1,5 +1,13 @@
-use std::iter::Peekable;
-use std::str::Chars;
+use std::{
+    iter::{Enumerate, Peekable},
+    num::ParseIntError,
+    str::Chars
+};
+use thiserror::Error;
+
+use crate::errors::DiagnosticsContext;
+
+type CharStream<'a> = Peekable<Enumerate<Chars<'a>>>;
 
 /// A lexical token read from a source stream
 #[derive(Debug, Eq, PartialEq)]
@@ -16,58 +24,110 @@ pub enum Token {
     Whitespace
 }
 
+#[derive(Debug, Error)]
+pub enum LexError {
+    #[error("Unexpected character {0}")]
+    UnexpectedChar(char, usize),
+    #[error("Failed to parse {0}")]
+    CouldntParseInt(String, #[source] ParseIntError)
+}
+
 impl Token {
     /// Try and yield the token that best fits the input
-    fn lex(source: &mut Peekable<Chars>) -> Option<Self> {
-        match source.next()? {
-            c @ ('A'..='Z' | 'a'..='z' | '_') => {
+    fn lex(
+        source: &mut CharStream,
+        error_ctx: &DiagnosticsContext
+    ) -> Result<Option<Self>, LexError>
+    {
+        let (idx, c) = match source.next() {
+            Some(x) => x,
+            None => return Ok(None)
+        };
+
+        match c {
+            'A'..='Z' | 'a'..='z' | '_' => {
                 // TODO: be more permissive w/ identifiers
                 let ident_or_keyword = {
                     let res = String::from(c);
                     consume_ident(source, res)
                 };
-                Some(Self::IdentOrKeyword(ident_or_keyword))
+                Ok(Some(Self::IdentOrKeyword(ident_or_keyword)))
             },
 
-            c @ '0'..='9' => {
+            '0'..='9' => {
                 // TODO: negative integers
                 let res = String::from(c);
-                Some(Self::Integer(consume_integer(source, res)))
+                match consume_integer(source, res, error_ctx) {
+                    Ok(res) => Ok(Some(Self::Integer(res))),
+                    Err((num, err)) => Err(LexError::CouldntParseInt(num, err))
+                }
             },
 
-            '(' => Some(Self::OpenParen),
-            ')' => Some(Self::CloseParen),
-            ' ' | '\t' | '\n' | '\r' => Some(Self::Whitespace),
-            c => todo!("{}", c)
+            '(' => Ok(Some(Self::OpenParen)),
+            ')' => Ok(Some(Self::CloseParen)),
+            ' ' | '\t' | '\n' | '\r' => Ok(Some(Self::Whitespace)),
+            _ => {
+                error_ctx
+                    .build_error_span(idx..idx + 1, "unexpected character")
+                    .emit();
+                Err(LexError::UnexpectedChar(c, idx))
+            }
         }
     }
 }
 
 /// Turn a source stream into a `Vec` of `Token`s
-pub fn lex(source: &str) -> Vec<Token> {
-    let mut source_chars = source.chars().peekable();
+pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
+    let mut source_chars = source.chars().enumerate().peekable();
+    let error_ctx = DiagnosticsContext::new(source, None);
     let mut res = Vec::new();
-    while let Some(token) = Token::lex(&mut source_chars) {
+
+    while let Some(token) = Token::lex(&mut source_chars, &error_ctx)? {
         if token != Token::Whitespace {
             res.push(token);
         }
     }
 
-    res
+    Ok(res)
 }
 
-fn consume_ident(source: &mut Peekable<Chars>, mut res: String) -> String {
-    // TODO: be more permissive
-    while let Some('A'..='Z' | 'a'..='z' | '_' | '0'..='9') = source.peek() {
-        res.push(source.next().unwrap());
+fn consume_ident(source: &mut CharStream, mut res: String) -> String {
+    while let Some((_, c)) = source.peek() {
+        // This if statement is seperated from the while statement
+        // for readability purposes
+        // TODO: be more permissive
+        if matches!(c, 'A'..='Z' | 'a'..='z' | '_' | '0'..='9') {
+            // nb. we are using source.peek() above
+            res.push(source.next().unwrap().1);
+        } else {
+            break;
+        }
     }
     res
 }
 
-fn consume_integer(source: &mut Peekable<Chars>, mut res: String) -> i32 {
-    while let Some('0'..='9') = source.peek() {
-        res.push(source.next().unwrap());
+fn consume_integer(
+    source: &mut CharStream,
+    mut res: String,
+    error_ctx: &DiagnosticsContext
+) -> Result<i32, (String, ParseIntError)>
+{
+    let start = source.peek().unwrap().0 - 1;
+    let mut end = start;
+
+    while let Some((idx, '0'..='9')) = source.peek() {
+        end = *idx;
+        res.push(source.next().unwrap().1);
     }
-    res.parse::<i32>()
-        .expect(&format!("Failed to parse i32: {}", res))
+
+    res.parse::<i32>().or_else(|err| {
+        error_ctx
+            .build_ice_span(
+                start..end + 1,
+                &format!("could not parse {} into an integer", res)
+            )
+            .note(&format!("str::parse::<i32> says: {}", err))
+            .emit();
+        Err((res, err))
+    })
 }
