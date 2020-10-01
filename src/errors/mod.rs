@@ -24,10 +24,11 @@ impl<'src> DiagnosticsContext<'src> {
     pub fn new(source: &'src str, origin: Option<String>) -> Self {
         Self { source, origin }
     }
-    
+
     pub fn build_ice(&self, message: &str) -> DiagnosticBuilder {
         DiagnosticBuilder::new(message.to_string(), Level::ICE, self)
             .note("this is an internal error")
+            .note("a bug report would be highly appreciated:\nhttps://github.com/Sparkpin/nightbug/issues/new")
     }
 
     pub fn build_ice_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
