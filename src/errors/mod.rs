@@ -1,6 +1,5 @@
 mod builder;
 
-use paste::paste;
 use std::ops::Range;
 
 use self::builder::DiagnosticBuilder;
@@ -15,48 +14,68 @@ enum Level {
     Note
 }
 
-macro_rules! build_fn {
-    ($name:ident, $level:expr) => {
-        paste! {
-            #[allow(dead_code)]
-            pub fn [<build_ $name>](&self, message: &str) -> DiagnosticBuilder {
-                DiagnosticBuilder::new(message.to_string(), $level, self)
-            }
-
-            #[allow(dead_code)]
-            pub fn [<build_ $name _span>](&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
-                self.[<build_ $name>](message).with_span(span)
-            }
-        }
-    };
-}
-
 pub struct DiagnosticsContext<'src> {
     source: &'src str,
     origin: Option<String>
 }
 
+#[allow(dead_code)]
 impl<'src> DiagnosticsContext<'src> {
     pub fn new(source: &'src str, origin: Option<String>) -> Self {
         Self { source, origin }
     }
-
-    #[allow(dead_code)]
+    
     pub fn build_ice(&self, message: &str) -> DiagnosticBuilder {
         DiagnosticBuilder::new(message.to_string(), Level::ICE, self)
             .note("this is an internal error")
     }
 
-    #[allow(dead_code)]
     pub fn build_ice_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
         self.build_ice(message).with_span(span)
     }
 
-    build_fn!(error, Level::Error);
-    build_fn!(warning, Level::Warning);
-    build_fn!(help, Level::Help);
-    build_fn!(info, Level::Info);
-    build_fn!(note, Level::Note);
+    // The below is quite repetitive, but using a macro causes rust-analyzer
+    // to be unable to find these functions :(
+
+    pub fn build_error(&self, message: &str) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(message.to_string(), Level::Error, self)
+    }
+
+    pub fn build_error_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
+        self.build_error(message).with_span(span)
+    }
+
+    pub fn build_warning(&self, message: &str) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(message.to_string(), Level::Warning, self)
+    }
+
+    pub fn build_warning_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
+        self.build_warning(message).with_span(span)
+    }
+
+    pub fn build_help(&self, message: &str) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(message.to_string(), Level::Help, self)
+    }
+
+    pub fn build_help_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
+        self.build_help(message).with_span(span)
+    }
+
+    pub fn build_info(&self, message: &str) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(message.to_string(), Level::Info, self)
+    }
+
+    pub fn build_info_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
+        self.build_info(message).with_span(span)
+    }
+
+    pub fn build_note(&self, message: &str) -> DiagnosticBuilder {
+        DiagnosticBuilder::new(message.to_string(), Level::Note, self)
+    }
+
+    pub fn build_note_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
+        self.build_note(message).with_span(span)
+    }
 }
 
 #[cfg(test)]
