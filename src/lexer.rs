@@ -139,7 +139,7 @@ fn consume_integer(
     error_ctx: &DiagnosticsContext
 ) -> Result<Token, (String, ParseIntError)>
 {
-    let start = source.peek().unwrap().0 - 1;
+    let start = source.peek().unwrap().0;
     let mut num_str = String::new();
 
     while let Some((_, '0'..='9')) = source.peek() {
