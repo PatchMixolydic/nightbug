@@ -1,6 +1,7 @@
 use std::{
     iter::{Enumerate, Peekable},
     num::ParseIntError,
+    ops::Range,
     str::Chars
 };
 use thiserror::Error;
@@ -9,9 +10,17 @@ use crate::errors::DiagnosticsContext;
 
 type CharStream<'a> = Peekable<Enumerate<Chars<'a>>>;
 
+#[derive(Debug, Error)]
+pub enum LexError {
+    #[error("Unexpected character {0}")]
+    UnexpectedChar(char, usize),
+    #[error("Failed to parse {0}")]
+    CouldntParseInt(String, #[source] ParseIntError)
+}
+
 /// A lexical token read from a source stream
 #[derive(Debug, Eq, PartialEq)]
-pub enum Token {
+pub enum TokenKind {
     /// Identifier or keyword ("foo", "define", "true")
     IdentOrKeyword(String),
     /// Integer ("4", "535325", "0")
@@ -24,51 +33,66 @@ pub enum Token {
     Whitespace
 }
 
-#[derive(Debug, Error)]
-pub enum LexError {
-    #[error("Unexpected character {0}")]
-    UnexpectedChar(char, usize),
-    #[error("Failed to parse {0}")]
-    CouldntParseInt(String, #[source] ParseIntError)
+#[derive(Debug, Eq, PartialEq)]
+pub struct Token {
+    pub span: Range<usize>,
+    pub kind: TokenKind
 }
 
 impl Token {
+    fn new(span: Range<usize>, kind: TokenKind) -> Self {
+        Self { span, kind }
+    }
     /// Try and yield the token that best fits the input
     fn lex(
         source: &mut CharStream,
         error_ctx: &DiagnosticsContext
     ) -> Result<Option<Self>, LexError>
     {
-        let (idx, c) = match source.next() {
-            Some(x) => x,
+        // For convenience/reducing parens
+        macro_rules! ok_some_self {
+            ($span:expr, $kind:expr) => {
+                Ok(Some(Self::new($span, $kind)))
+            };
+        }
+
+        let (idx, c) = match source.peek() {
+            // Tuple is deconstructed here to copy the fields
+            Some(x) => (x.0, x.1),
             None => return Ok(None)
         };
+        // Span for c, since it's the most common
+        let span_c = idx..idx + 1;
 
         match c {
             'A'..='Z' | 'a'..='z' | '_' => {
                 // TODO: be more permissive w/ identifiers
-                let ident_or_keyword = {
-                    let res = String::from(c);
-                    consume_ident(source, res)
-                };
-                Ok(Some(Self::IdentOrKeyword(ident_or_keyword)))
+                Ok(Some(consume_ident(source)))
             },
 
             '0'..='9' => {
                 // TODO: negative integers
-                let res = String::from(c);
-                match consume_integer(source, res, error_ctx) {
-                    Ok(res) => Ok(Some(Self::Integer(res))),
-                    Err((num, err)) => Err(LexError::CouldntParseInt(num, err))
+                match consume_integer(source, error_ctx) {
+                    Ok(res) => Ok(Some(res)),
+                    Err((num_str, err)) => Err(LexError::CouldntParseInt(num_str, err))
                 }
             },
 
-            '(' => Ok(Some(Self::OpenParen)),
-            ')' => Ok(Some(Self::CloseParen)),
-            ' ' | '\t' | '\n' | '\r' => Ok(Some(Self::Whitespace)),
+            '(' => {
+                source.next();
+                ok_some_self!(span_c, TokenKind::OpenParen)
+            },
+            ')' => {
+                source.next();
+                ok_some_self!(span_c, TokenKind::CloseParen)
+            },
+            ' ' | '\t' | '\n' | '\r' => {
+                source.next();
+                ok_some_self!(span_c, TokenKind::Whitespace)
+            },
             _ => {
                 error_ctx
-                    .build_error_span(idx..idx + 1, "unexpected character")
+                    .build_error_span(span_c, "unexpected character")
                     .emit();
                 Err(LexError::UnexpectedChar(c, idx))
             }
@@ -83,7 +107,7 @@ pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
     let mut res = Vec::new();
 
     while let Some(token) = Token::lex(&mut source_chars, &error_ctx)? {
-        if token != Token::Whitespace {
+        if token.kind != TokenKind::Whitespace {
             res.push(token);
         }
     }
@@ -91,7 +115,10 @@ pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
     Ok(res)
 }
 
-fn consume_ident(source: &mut CharStream, mut res: String) -> String {
+fn consume_ident(source: &mut CharStream) -> Token {
+    let mut res = String::new();
+    let start = source.peek().unwrap().0;
+
     while let Some((_, c)) = source.peek() {
         // This if statement is seperated from the while statement
         // for readability purposes
@@ -103,31 +130,32 @@ fn consume_ident(source: &mut CharStream, mut res: String) -> String {
             break;
         }
     }
-    res
+
+    Token::new(start..start + res.len(), TokenKind::IdentOrKeyword(res))
 }
 
 fn consume_integer(
     source: &mut CharStream,
-    mut res: String,
     error_ctx: &DiagnosticsContext
-) -> Result<i32, (String, ParseIntError)>
+) -> Result<Token, (String, ParseIntError)>
 {
     let start = source.peek().unwrap().0 - 1;
-    let mut end = start;
+    let mut num_str = String::new();
 
-    while let Some((idx, '0'..='9')) = source.peek() {
-        end = *idx;
-        res.push(source.next().unwrap().1);
+    while let Some((_, '0'..='9')) = source.peek() {
+        num_str.push(source.next().unwrap().1);
     }
 
-    res.parse::<i32>().or_else(|err| {
+    num_str.parse::<i32>()
+    .map(|res| Token::new(start..start + num_str.len(), TokenKind::Integer(res)))
+    .or_else(|err| {
         error_ctx
             .build_ice_span(
-                start..end + 1,
-                &format!("could not parse {} into an integer", res)
+                start..start + num_str.len(),
+                &format!("could not parse {} into an integer", num_str)
             )
             .note(&format!("str::parse::<i32> says: {}", err))
             .emit();
-        Err((res, err))
+        Err((num_str, err))
     })
 }

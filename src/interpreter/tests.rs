@@ -6,7 +6,7 @@ use crate::{
 
 macro_rules! interpret_str {
     ($s:literal) => {
-        interpret(parse(lex($s)).into_iter())
+        interpret(parse(lex($s).unwrap(), $s).unwrap().into_iter())
     };
 }
 

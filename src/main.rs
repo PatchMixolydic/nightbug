@@ -22,7 +22,12 @@ fn main() {
         Err(_) => return
     };
     println!("Tokens: {:?}", tokens);
-    let expressions = parser::parse(tokens);
+    println!();
+
+    let expressions = match parser::parse(tokens, code) {
+        Ok(res) => res,
+        Err(_) => return
+    };
     println!("Expressions: {:?}", expressions);
     println!();
 

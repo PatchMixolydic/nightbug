@@ -1,6 +1,18 @@
 use std::convert::TryFrom;
+use thiserror::Error;
 
-use crate::lexer::Token;
+use crate::{
+    errors::DiagnosticsContext,
+    lexer::{Token, TokenKind}
+};
+
+#[derive(Debug, Error)]
+pub enum ParseError {
+    #[error("Unclosed delimiter at character {location}")]
+    UnclosedDelimiter { location: usize, eof: usize },
+    #[error("Unexpected closing delimiter at character {0}")]
+    UnexpectedCloseDelimiter(usize)
+}
 
 /// A keyword
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,77 +54,112 @@ pub enum Expr {
     List(Vec<Expr>)
 }
 
-struct Parser {
+struct Parser<'src> {
     // Is there a better way?
-    tokens: Box<dyn Iterator<Item = Token>>
+    tokens: Box<dyn Iterator<Item = Token>>,
+    error_ctx: DiagnosticsContext<'src>
 }
 
-impl Parser {
+impl<'src> Parser<'src> {
+    fn new(tokens: Vec<Token>, code: &'src str) -> Self {
+        Self {
+            tokens: Box::new(tokens.into_iter()),
+            error_ctx: DiagnosticsContext::new(code, None)
+        }
+    }
+
+    fn emit_unclosed_delimiter_err(&self, location: usize, eof: usize) {
+        self.error_ctx
+            .build_error("unclosed delimiter in file")
+            .span_label(location..location + 1, "this delimiter")
+            .span_label(
+                eof..eof + 1,
+                "reached end of file before finding matching delimiter"
+            )
+            .emit();
+    }
+
     /// Tries to turn a `Token` into an `Expr`
-    fn parse_token(&mut self, token: Token) -> Option<Expr> {
-        match token {
-            Token::IdentOrKeyword(id_or_kw) => {
+    fn parse_token(&mut self, token: Token) -> Result<Expr, ParseError> {
+        let Token { span, kind } = token;
+        match kind {
+            TokenKind::IdentOrKeyword(id_or_kw) => {
                 if let Ok(keyword) = Keyword::try_from(id_or_kw.as_str()) {
-                    return Some(Expr::Keyword(keyword));
+                    return Ok(Expr::Keyword(keyword));
                 }
 
                 match id_or_kw.as_str() {
-                    "true" => Some(Expr::Boolean(true)),
-                    "false" => Some(Expr::Boolean(false)),
-                    _ => Some(Expr::Identifier(id_or_kw.clone()))
+                    "true" => Ok(Expr::Boolean(true)),
+                    "false" => Ok(Expr::Boolean(false)),
+                    _ => Ok(Expr::Identifier(id_or_kw.clone()))
                 }
             },
 
-            Token::Integer(i) => Some(Expr::Integer(i)),
+            TokenKind::Integer(i) => Ok(Expr::Integer(i)),
 
-            Token::OpenParen => {
+            TokenKind::OpenParen => {
                 let mut contents = Vec::new();
-                let next_token = self.tokens.next();
+                let maybe_next_token = self.tokens.next();
 
-                if let Some(Token::CloseParen) = next_token {
-                    return Some(Expr::Unit);
-                } else if let Some(token) = next_token {
-                    contents.push(self.parse_token(token).expect("Unexpected EOF"));
+                if let Some(token) = maybe_next_token {
+                    if token.kind == TokenKind::CloseParen {
+                        return Ok(Expr::Unit);
+                    } else {
+                        contents.push(self.parse_token(token)?);
+                    }
                 } else {
-                    panic!("unexpected EOF");
+                    // Span end is one after our token
+                    self.emit_unclosed_delimiter_err(span.start, span.end - 1);
                 }
 
                 while let Some(token) = self.tokens.next() {
-                    if token == Token::CloseParen {
+                    if token.kind == TokenKind::CloseParen {
                         break;
                     }
+                    let token_span = token.span.clone();
 
-                    contents.push(self.parse_token(token).expect("Unexpected EOF"));
+                    match self.parse_token(token) {
+                        Ok(expr) => contents.push(expr),
+                        Err(err) => {
+                            // TODO: probably the wrong error
+                            self.emit_unclosed_delimiter_err(span.start, token_span.start);
+                            return Err(err);
+                        }
+                    }
                 }
 
-                Some(Expr::List(contents))
+                Ok(Expr::List(contents))
             },
 
-            Token::CloseParen => unimplemented!(),
-            Token::Whitespace => unreachable!()
+            TokenKind::CloseParen => {
+                self.error_ctx
+                    .build_error_span(0..0, "unexpected closing parenthesis")
+                    .emit();
+                Err(ParseError::UnexpectedCloseDelimiter(0))
+            },
+
+            TokenKind::Whitespace => unreachable!()
         }
     }
 
     /// Convenience for parsing the next token in self.tokens
-    fn parse_next(&mut self) -> Option<Expr> {
+    fn parse_next(&mut self) -> Result<Option<Expr>, ParseError> {
         let next_token = self.tokens.next();
-        if next_token.is_none() {
-            return None;
+        match next_token {
+            Some(token) => Ok(Some(self.parse_token(token)?)),
+            None => Ok(None)
         }
-        self.parse_token(next_token.unwrap())
     }
 }
 
 /// Parse the given `Vec` of `Token`s into a `Vec` of `Expr`s.
-pub fn parse(tokens: Vec<Token>) -> Vec<Expr> {
+pub fn parse(tokens: Vec<Token>, code: &str) -> Result<Vec<Expr>, ParseError> {
     let mut res = Vec::new();
-    let mut parser = Parser {
-        tokens: Box::new(tokens.into_iter())
-    };
+    let mut parser = Parser::new(tokens, code);
 
-    while let Some(token) = parser.parse_next() {
+    while let Some(token) = parser.parse_next()? {
         res.push(token);
     }
 
-    res
+    Ok(res)
 }
