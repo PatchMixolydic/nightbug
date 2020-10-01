@@ -31,8 +31,9 @@ fn main() {
     println!("Expressions: {:?}", expressions);
     println!();
 
+    let mut interpreter = interpreter::Interpreter::new();
     println!(
         "Result: {:?}",
-        interpreter::interpret(expressions.into_iter())
+        interpreter.interpret(expressions.into_iter())
     );
 }

@@ -1,12 +1,12 @@
 use crate::{
-    interpreter::{interpret, Binding},
+    interpreter::{Binding, Interpreter},
     lexer::lex,
     parser::{parse, Expr}
 };
 
 macro_rules! interpret_str {
     ($s:literal) => {
-        interpret(parse(lex($s).unwrap(), $s).unwrap().into_iter())
+        Interpreter::new().interpret(parse(lex($s).unwrap(), $s).unwrap().into_iter())
     };
 }
 
