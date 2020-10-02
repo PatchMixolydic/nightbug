@@ -169,7 +169,6 @@ impl<'src> Parser<'src> {
                         Some(next_token) => next_token,
 
                         None => {
-                            println!("Rumia was here");
                             self.emit_unclosed_delimiter_err(span.start, prev_expr_span_end);
                             return Err(ParseError::UnclosedDelimiter {
                                 location: span.start,
