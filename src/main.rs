@@ -3,10 +3,6 @@
 //! so the language is likely highly unstable and probably
 //! inefficient. Please be careful!
 
-#![feature(once_cell)]
-#![feature(or_patterns)]
-#![feature(type_alias_impl_trait)]
-
 pub mod errors;
 pub mod interpreter;
 pub mod lexer;
