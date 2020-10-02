@@ -117,7 +117,7 @@ impl<'src> Parser<'src> {
 
     fn emit_unclosed_delimiter_err(&self, location: usize, eof: usize) {
         self.error_ctx
-            .build_error("unclosed delimiter in file")
+            .build_error("unclosed delimiter detected")
             .span_label(location..location + 1, "this delimiter")
             .span_label(eof..eof + 1, "reached end of file before finding a match")
             .emit();
@@ -159,17 +159,21 @@ impl<'src> Parser<'src> {
                     });
                 }
 
-                let mut prev_token_span_end = span.end - 1;
+                // nb. the unwrap here should be infallible --
+                // all branches in the above if expression either return or push
+                // to contents
+                let mut prev_expr_span_end = contents.last().unwrap().span.end - 1;
 
                 loop {
                     let next_token = match self.tokens.next() {
                         Some(next_token) => next_token,
 
                         None => {
-                            self.emit_unclosed_delimiter_err(span.start, prev_token_span_end);
+                            println!("Rumia was here");
+                            self.emit_unclosed_delimiter_err(span.start, prev_expr_span_end);
                             return Err(ParseError::UnclosedDelimiter {
                                 location: span.start,
-                                eof: prev_token_span_end
+                                eof: prev_expr_span_end
                             });
                         }
                     };
@@ -178,9 +182,12 @@ impl<'src> Parser<'src> {
                         break;
                     }
 
-                    prev_token_span_end = next_token.span.end - 1;
                     match self.parse_token(next_token) {
-                        Ok(expr) => contents.push(expr),
+                        Ok(expr) => {
+                            prev_expr_span_end = expr.span.end;
+                            contents.push(expr);
+                        },
+
                         Err(err) => {
                             // probably already emitted an error, propagate it
                             return Err(err);
@@ -189,7 +196,7 @@ impl<'src> Parser<'src> {
                 }
 
                 Ok(Expr::new(
-                    span.start..prev_token_span_end,
+                    span.start..prev_expr_span_end,
                     ExprKind::List(contents)
                 ))
             },

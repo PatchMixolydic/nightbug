@@ -34,7 +34,7 @@ fn integer_literal() {
 #[test]
 fn boolean_literal() {
     assert_result_expr!("true", ExprKind::Boolean(true));
-    assert_result_expr!("false",ExprKind::Boolean(false));
+    assert_result_expr!("false", ExprKind::Boolean(false));
 }
 
 #[test]

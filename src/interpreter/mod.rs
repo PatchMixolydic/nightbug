@@ -253,7 +253,7 @@ fn add_native(bindings: Bindings) -> InterpResult {
 
             _ => {
                 error_ctx
-                    .build_error(&format!("unexpected argument to `add`:{:?}", binding))
+                    .build_error(&format!("unexpected argument to `add`: {:?}", binding))
                     .note("cannot highlight the argument in your code right now, my apologies")
                     .note("`add` only expects integers as arguments")
                     .emit();
