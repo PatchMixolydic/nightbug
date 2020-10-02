@@ -174,7 +174,7 @@ impl<'src> Parser<'src> {
 
                     match self.parse_token(next_token) {
                         Ok(expr) => {
-                            prev_expr_span_end = expr.span.end;
+                            prev_expr_span_end = expr.span.end - 1;
                             contents.push(expr);
                         },
 
@@ -232,6 +232,20 @@ mod tests {
     #[test]
     fn fail_unclosed() {
         let code = "(add 2 (second 3 4)) (foobar 1";
+        let res = parse(lex(code).unwrap(), code);
+        assert!(matches!(res, Err(ParseError::UnclosedDelimiter { .. })));
+    }
+
+    #[test]
+    fn fail_unclosed_after_list() {
+        let code = "(add 2 (second 3 4)";
+        let res = parse(lex(code).unwrap(), code);
+        assert!(matches!(res, Err(ParseError::UnclosedDelimiter { .. })));
+    }
+
+    #[test]
+    fn fail_unclosed_after_just_ident() {
+        let code = "(add";
         let res = parse(lex(code).unwrap(), code);
         assert!(matches!(res, Err(ParseError::UnclosedDelimiter { .. })));
     }
