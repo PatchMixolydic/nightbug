@@ -1,18 +1,22 @@
 use crate::{
     interpreter::{Binding, Interpreter},
     lexer::lex,
-    parser::{parse, Expr}
+    parser::{parse, ExprKind}
 };
 
 macro_rules! interpret_str {
-    ($s:literal) => {
-        Interpreter::new().interpret(parse(lex($s).unwrap(), $s).unwrap().into_iter())
-    };
+    ($s:literal) => {{
+        let exprs = parse(lex($s).unwrap(), $s).unwrap();
+        Interpreter::new().interpret(exprs.into_iter()).unwrap()
+    }};
 }
 
-macro_rules! assert_result {
-    ($code:literal, $expect:expr) => {
-        assert_eq!(interpret_str!($code), $expect)
+macro_rules! assert_result_expr {
+    ($code:literal, $kind:expr) => {
+        match interpret_str!($code) {
+            Binding::Expression(expr) => assert_eq!(expr.kind, $kind),
+            binding => panic!("Result of {} is not an expression: {:?}", $code, binding)
+        }
     };
 }
 
@@ -22,19 +26,15 @@ macro_rules! assert_result_matches {
     };
 }
 
-const fn bind(expr: Expr) -> Binding {
-    Binding::Expression(expr)
-}
-
 #[test]
 fn integer_literal() {
-    assert_result!("2", bind(Expr::Integer(2)));
+    assert_result_expr!("2", ExprKind::Integer(2));
 }
 
 #[test]
 fn boolean_literal() {
-    assert_result!("true", bind(Expr::Boolean(true)));
-    assert_result!("false", bind(Expr::Boolean(false)));
+    assert_result_expr!("true", ExprKind::Boolean(true));
+    assert_result_expr!("false",ExprKind::Boolean(false));
 }
 
 #[test]
@@ -50,15 +50,15 @@ fn native_function() {
 
 #[test]
 fn add() {
-    assert_result!("(add 2 3)", bind(Expr::Integer(5)));
+    assert_result_expr!("(add 2 3)", ExprKind::Integer(5));
 }
 
 #[test]
 fn second() {
-    assert_result!("(second 2 3)", bind(Expr::Integer(3)));
+    assert_result_expr!("(second 2 3)", ExprKind::Integer(3));
 }
 
 #[test]
 fn composed_add_second() {
-    assert_result!("(add 2 (second 3 4))", bind(Expr::Integer(6)));
+    assert_result_expr!("(add 2 (second 3 4))", ExprKind::Integer(6));
 }
