@@ -64,8 +64,7 @@ impl<'src> Interpreter<'src> {
         &mut self,
         expressions: Vec<Expr>,
         source: &'src str
-    ) -> InterpResult
-    {
+    ) -> InterpResult {
         self.error_ctx.set_src(source);
         self.interpret(expressions.into_iter())
     }
@@ -96,8 +95,7 @@ impl<'src> Interpreter<'src> {
         ident: &str,
         span: Range<usize>,
         expressions: Expressions
-    ) -> InterpResult
-    {
+    ) -> InterpResult {
         let binding = match self.bindings.get(ident) {
             Some(res) => res.clone(),
             None => {
@@ -130,8 +128,7 @@ impl<'src> Interpreter<'src> {
         ident: &str,
         name_span: Range<usize>,
         expressions: Expressions
-    ) -> InterpResult
-    {
+    ) -> InterpResult {
         // TODO: seems lengthy... can this be trimmed down?
         assert!(matches!(
             func,
@@ -252,7 +249,7 @@ fn add_native(bindings: Bindings) -> InterpResult {
                 ..
             }) => {
                 res += i;
-            }
+            },
 
             _ => {
                 error_ctx
@@ -260,7 +257,10 @@ fn add_native(bindings: Bindings) -> InterpResult {
                     .note("cannot highlight the argument in your code right now, my apologies")
                     .note("`add` only expects integers as arguments")
                     .emit();
-                return Err(InterpreterError::InvalidArgument("add".to_string(), binding));
+                return Err(InterpreterError::InvalidArgument(
+                    "add".to_string(),
+                    binding
+                ));
             }
         }
     }

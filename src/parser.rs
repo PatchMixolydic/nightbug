@@ -1,4 +1,4 @@
-use std::{ops::Range, convert::TryFrom};
+use std::{convert::TryFrom, ops::Range};
 use thiserror::Error;
 
 use crate::{
@@ -188,7 +188,10 @@ impl<'src> Parser<'src> {
                     }
                 }
 
-                Ok(Expr::new(span.start..prev_token_span_end, ExprKind::List(contents)))
+                Ok(Expr::new(
+                    span.start..prev_token_span_end,
+                    ExprKind::List(contents)
+                ))
             },
 
             TokenKind::CloseParen => {

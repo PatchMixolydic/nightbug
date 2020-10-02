@@ -59,8 +59,7 @@ impl<'ctx, 'src> DiagnosticBuilder<'ctx, 'src> {
         title: String,
         level: Level,
         context: &'ctx DiagnosticsContext<'src>
-    ) -> Self
-    {
+    ) -> Self {
         Self {
             title,
             level,
