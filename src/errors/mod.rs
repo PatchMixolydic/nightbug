@@ -25,6 +25,10 @@ impl<'src> DiagnosticsContext<'src> {
         Self { source, origin }
     }
 
+    pub fn set_src(&mut self, source: &'src str) {
+        self.source = source;
+    }
+
     pub fn build_ice(&self, message: &str) -> DiagnosticBuilder {
         DiagnosticBuilder::new(message.to_string(), Level::ICE, self)
             .note("this is an internal error")

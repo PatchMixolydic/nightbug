@@ -34,6 +34,6 @@ fn main() {
     let mut interpreter = interpreter::Interpreter::new();
     println!(
         "Result: {:?}",
-        interpreter.interpret(expressions.into_iter())
+        interpreter.interpret_with_source(expressions, code)
     );
 }

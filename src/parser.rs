@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{ops::Range, convert::TryFrom};
 use thiserror::Error;
 
 use crate::{
@@ -35,9 +35,8 @@ impl TryFrom<&str> for Keyword {
     }
 }
 
-/// An expression
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Expr {
+pub enum ExprKind {
     /// eg. "define"
     Keyword(Keyword),
     /// eg. "foo"
@@ -52,6 +51,54 @@ pub enum Expr {
     Argument(usize),
     /// S-expression (eg. "(add 2 2)")
     List(Vec<Expr>)
+}
+
+/// An expression
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Expr {
+    pub span: Range<usize>,
+    pub kind: ExprKind
+}
+
+impl Expr {
+    pub fn new(span: Range<usize>, kind: ExprKind) -> Self {
+        Self { span, kind }
+    }
+
+    /// Convenience function to create a keyword expression
+    pub fn keyword(span: Range<usize>, keyword: Keyword) -> Self {
+        Self::new(span, ExprKind::Keyword(keyword))
+    }
+
+    /// Convenience function to create an identifier expression
+    pub fn identifier(span: Range<usize>, ident: String) -> Self {
+        Self::new(span, ExprKind::Identifier(ident))
+    }
+
+    /// Convenience function to create an integer expression
+    pub fn integer(span: Range<usize>, num: i32) -> Self {
+        Self::new(span, ExprKind::Integer(num))
+    }
+
+    /// Convenience function to create a boolean expression
+    pub fn boolean(span: Range<usize>, b: bool) -> Self {
+        Self::new(span, ExprKind::Boolean(b))
+    }
+
+    /// Convenience function to create a unit value expression
+    pub fn unit(span: Range<usize>) -> Self {
+        Self::new(span, ExprKind::Unit)
+    }
+
+    /// Convenience function to create an argument expression
+    pub fn argument(span: Range<usize>, idx: usize) -> Self {
+        Self::new(span, ExprKind::Argument(idx))
+    }
+
+    /// Convenience function to create a list expression
+    pub fn list(span: Range<usize>, exprs: Vec<Expr>) -> Self {
+        Self::new(span, ExprKind::List(exprs))
+    }
 }
 
 struct Parser<'src> {
@@ -82,24 +129,24 @@ impl<'src> Parser<'src> {
         match kind {
             TokenKind::IdentOrKeyword(id_or_kw) => {
                 if let Ok(keyword) = Keyword::try_from(id_or_kw.as_str()) {
-                    return Ok(Expr::Keyword(keyword));
+                    return Ok(Expr::keyword(span, keyword));
                 }
 
                 match id_or_kw.as_str() {
-                    "true" => Ok(Expr::Boolean(true)),
-                    "false" => Ok(Expr::Boolean(false)),
-                    _ => Ok(Expr::Identifier(id_or_kw.clone()))
+                    "true" => Ok(Expr::boolean(span, true)),
+                    "false" => Ok(Expr::boolean(span, false)),
+                    _ => Ok(Expr::identifier(span, id_or_kw.clone()))
                 }
             },
 
-            TokenKind::Integer(i) => Ok(Expr::Integer(i)),
+            TokenKind::Integer(i) => Ok(Expr::integer(span, i)),
 
             TokenKind::OpenParen => {
                 let mut contents = Vec::new();
 
                 if let Some(next_token) = self.tokens.next() {
                     if next_token.kind == TokenKind::CloseParen {
-                        return Ok(Expr::Unit);
+                        return Ok(Expr::new(span.start..span.end + 1, ExprKind::Unit));
                     } else {
                         contents.push(self.parse_token(next_token)?);
                     }
@@ -141,7 +188,7 @@ impl<'src> Parser<'src> {
                     }
                 }
 
-                Ok(Expr::List(contents))
+                Ok(Expr::new(span.start..prev_token_span_end, ExprKind::List(contents)))
             },
 
             TokenKind::CloseParen => {
