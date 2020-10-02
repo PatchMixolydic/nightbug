@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, ops::Range};
+use std::ops::Range;
 use thiserror::Error;
 
 use crate::{
@@ -21,18 +21,6 @@ pub enum Keyword {
     Define,
     /// Declare a function
     Fn
-}
-
-impl TryFrom<&str> for Keyword {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value {
-            "define" => Ok(Self::Define),
-            "fn" => Ok(Self::Fn),
-            _ => Err(())
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -99,6 +87,19 @@ impl Expr {
     pub fn list(span: Range<usize>, exprs: Vec<Expr>) -> Self {
         Self::new(span, ExprKind::List(exprs))
     }
+
+    /// Converts a string slice into an expression,
+    /// ex. "define" becomes a keyword, "false" becomes a boolean,
+    /// and "foobar" becomes an identifier.
+    fn ident_to_expr(span: Range<usize>, ident: String) -> Self {
+        match ident.as_str() {
+            "define" => Self::keyword(span, Keyword::Define),
+            "fn" => Self::keyword(span, Keyword::Fn),
+            "true" => Self::boolean(span, true),
+            "false" => Self::boolean(span, false),
+            _ => Self::identifier(span, ident)
+        }
+    }
 }
 
 struct Parser<'src> {
@@ -127,17 +128,7 @@ impl<'src> Parser<'src> {
     fn parse_token(&mut self, token: Token) -> Result<Expr, ParseError> {
         let Token { span, kind } = token;
         match kind {
-            TokenKind::IdentOrKeyword(id_or_kw) => {
-                if let Ok(keyword) = Keyword::try_from(id_or_kw.as_str()) {
-                    return Ok(Expr::keyword(span, keyword));
-                }
-
-                match id_or_kw.as_str() {
-                    "true" => Ok(Expr::boolean(span, true)),
-                    "false" => Ok(Expr::boolean(span, false)),
-                    _ => Ok(Expr::identifier(span, id_or_kw.clone()))
-                }
-            },
+            TokenKind::IdentOrKeyword(id_or_kw) => Ok(Expr::ident_to_expr(span, id_or_kw)),
 
             TokenKind::Integer(i) => Ok(Expr::integer(span, i)),
 
