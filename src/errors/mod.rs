@@ -32,7 +32,7 @@ impl<'src> DiagnosticsContext<'src> {
     pub fn build_ice(&self, message: &str) -> DiagnosticBuilder {
         DiagnosticBuilder::new(message.to_string(), Level::ICE, self)
             .note("this is an internal error")
-            .note("a bug report would be highly appreciated:\nhttps://github.com/Sparkpin/nightbug/issues/new")
+            .note("a bug report would be highly appreciated:\nhttps://github.com/PatchMixolydic/nightbug/issues/new")
     }
 
     pub fn build_ice_span(&self, span: Range<usize>, message: &str) -> DiagnosticBuilder {
